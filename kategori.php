@@ -1,102 +1,75 @@
-<?php 
-session_start(); // Sepet sayısını göstermek için session başlattık
-require_once 'includes/db.php'; 
+<?php
+session_start();
+require_once 'includes/db.php';
 
-// 1. URL'den kategori ID'sini al
-$kat_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$masa_id = isset($_GET['masa']) ? intval($_GET['masa']) : (isset($_SESSION['masa_id']) ? $_SESSION['masa_id'] : 0);
+$_SESSION['masa_id'] = $masa_id;
 
-// 2. Kategori adını çek
-$kat_sorgu = $db->prepare("SELECT name FROM categories WHERE id = ?");
-$kat_sorgu->execute([$kat_id]);
-$kategori = $kat_sorgu->fetch(PDO::FETCH_ASSOC);
+$cat_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-if (!$kategori) {
-    header("Location: index.php");
-    exit;
-}
+$category = $db->prepare("SELECT name FROM categories WHERE id = ?");
+$category->execute([$cat_id]);
+$cat_name = $category->fetchColumn();
 
-// 3. Bu kategoriye ait ürünleri çek
-$urunler = $db->prepare("SELECT * FROM products WHERE category_id = ? AND is_active = 1");
-$urunler->execute([$kat_id]);
-$urun_listesi = $urunler->fetchAll(PDO::FETCH_ASSOC);
-
-// Sepette kaç ürün var? (Üstteki buton için)
-$sepet_adet = 0;
-if(isset($_SESSION['sepet'])) {
-    foreach($_SESSION['sepet'] as $item) {
-        $sepet_adet += $item['adet'];
-    }
-}
+$products = $db->prepare("SELECT * FROM products WHERE category_id = ? AND is_active = 1");
+$products->execute([$cat_id]);
+$urunler = $products->fetchAll(PDO::FETCH_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $kategori['name']; ?> | QR Menü</title>
+    <title><?php echo $cat_name; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        body { background-color: #f8f9fa; }
-        .product-card { 
-            border: none; border-radius: 15px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
-            margin-bottom: 20px;
-        }
-        .price-badge { 
-            background-color: #2ecc71; color: white; 
-            padding: 5px 15px; border-radius: 50px; font-weight: bold; 
-        }
-        .sticky-header {
-            position: sticky; top: 0; z-index: 1000;
-            background: white; padding: 15px 0; border-bottom: 1px solid #eee;
-        }
+        body { background-color: #f8f9fa; padding-bottom: 80px; }
+        .product-card { background: #fff; border-radius: 15px; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .add-btn { background: #ffc107; border: none; border-radius: 10px; width: 45px; height: 45px; font-weight: bold; font-size: 24px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #000; transition: 0.2s; }
+        .add-btn:active { transform: scale(0.9); }
+        .header { background: #fff; padding: 15px; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; }
     </style>
 </head>
 <body>
 
-<div class="sticky-header shadow-sm">
-    <div class="container d-flex justify-content-between align-items-center">
-        <a href="index.php" class="btn btn-outline-dark btn-sm">⬅ Geri</a>
-        <h5 class="mb-0 fw-bold"><?php echo $kategori['name']; ?></h5>
-        <a href="sepet.php" class="btn btn-warning btn-sm position-relative">
-            🛒 Sepet
-            <?php if($sepet_adet > 0): ?>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    <?php echo $sepet_adet; ?>
-                </span>
-            <?php endif; ?>
-        </a>
-    </div>
+<div class="header d-flex justify-content-between align-items-center mb-3">
+    <a href="index.php?masa=<?php echo $masa_id; ?>" class="btn btn-sm btn-outline-dark fw-bold">⬅ Geri</a>
+    <h6 class="mb-0 fw-bold"><?php echo $cat_name; ?></h6>
+    <span class="badge bg-danger p-2">Masa <?php echo $masa_id; ?></span>
 </div>
 
-<div class="container mt-4">
-    <div class="row">
-        <?php if (count($urun_listesi) > 0): ?>
-            <?php foreach($urun_listesi as $urun): ?>
-                <div class="col-12 col-md-6">
-                    <div class="card product-card p-2">
-                        <div class="card-body d-flex justify-content-between align-items-center">
-                            <div style="max-width: 65%;">
-                                <h6 class="fw-bold mb-1"><?php echo htmlspecialchars($urun['name']); ?></h6>
-                                <p class="text-muted small mb-0"><?php echo htmlspecialchars($urun['description']); ?></p>
-                            </div>
-                            <div class="text-end">
-                                <div class="price-badge mb-2"><?php echo number_format($urun['price'], 2, ',', '.'); ?> TL</div>
-                                <a href="sepet_islem.php?ekle=<?php echo $urun['id']; ?>" class="btn btn-dark btn-sm rounded-pill w-100">Ekle +</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <div class="col-12 text-center py-5">
-                <p class="text-muted">Bu kategoride henüz ürün bulunmuyor.</p>
-            </div>
-        <?php endif; ?>
+<div class="container">
+    <?php foreach($urunler as $p): ?>
+    <div class="product-card shadow-sm border-0">
+        <div>
+            <div class="fw-bold text-dark fs-5"><?php echo $p['name']; ?></div>
+            <small class="text-muted d-block mb-1"><?php echo $p['description']; ?></small>
+            <span class="text-success fw-bold fs-5"><?php echo number_format($p['price'], 2); ?> TL</span>
+        </div>
+        <a href="islem.php?ekle=<?php echo $p['id']; ?>&masa=<?php echo $masa_id; ?>" class="add-btn">+</a>
     </div>
+    <?php endforeach; ?>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<div class="fixed-bottom p-3 bg-white border-top shadow-lg d-flex justify-content-between align-items-center">
+    <div class="fw-bold text-muted">Masa <?php echo $masa_id; ?> Seçili</div>
+    <a href="sepet.php?masa=<?php echo $masa_id; ?>" class="btn btn-warning btn-lg fw-bold px-4 rounded-pill shadow">Sepetim 🛒</a>
+</div>
+
+<script>
+    // URL'de eklendi varsa şık bir toast göster
+    if (window.location.search.includes('eklendi=1')) {
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'bottom-end',
+            showConfirmButton: false,
+            timer: 1500,
+            background: '#212529',
+            color: '#fff'
+        });
+        Toast.fire({ icon: 'success', title: 'Sepete eklendi!' });
+    }
+</script>
 </body>
 </html>

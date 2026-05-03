@@ -1,16 +1,9 @@
 <?php
-$host = 'localhost:3307'; // Portu buraya ekledik!
-$dbname = 'qrmenu_db';
-$user = 'root';
-$pass = '';
-
 try {
-    // Port bilgisiyle beraber bağlantı dizesi
-    $db = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);
-    
+    // Port: 3307, Veritabanı: qrmenu_db
+    $db = new PDO("mysql:host=localhost;port=3307;dbname=qrmenu_db;charset=utf8", "root", "");
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
 } catch (PDOException $e) {
-    die("Veritabanı Bağlantı Hatası: " . $e->getMessage());
+    die("Bağlantı hatası: " . $e->getMessage());
 }
 ?>
